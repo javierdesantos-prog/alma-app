@@ -152,7 +152,7 @@
     if (!ok) { sheet.innerHTML = '<h3>Not connected</h3><p>ALMA could not reach its database from here. Check the connection and open it again.</p>'; return; }
     if (!user) {
       sheet.innerHTML = `<h3>Keep your feelings</h3>
-        <p>ALMA keeps what you share in your own private space, on every device you use. Enter your email and we will send you a six-digit code.</p>
+        <p>ALMA keeps what you share in your own private space, on every device you use. Enter your email and we will send you a link to open ALMA.</p>
         <label for="acEmail">Email</label><input type="email" id="acEmail" autocomplete="email" inputmode="email" value="${pendingEmail || ''}">
         <button class="go" id="acSend">Send the code</button>
         ${pendingEmail ? `<label for="acCode">The code from the email</label><input inputmode="numeric" id="acCode" maxlength="6" autocomplete="one-time-code"><button class="go" id="acVerify">Open my ALMA</button>` : ''}
@@ -184,7 +184,7 @@
     const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname } });
     if (error) { $('acSend').disabled = false; say(error.message.includes('rate') ? 'Too many codes asked for. Wait a minute and try again.' : 'Could not send it: ' + error.message); return; }
     pendingEmail = email; store.set('alma-pending-email', email);
-    renderAcct('Sent. Look for an email from ALMA (check spam too).'); setTimeout(() => $('acCode') && $('acCode').focus(), 200);
+    renderAcct('Sent. Open the email on this device and tap its link, or type the code if it shows one. Check spam too.'); setTimeout(() => $('acCode') && $('acCode').focus(), 200);
   }
   async function verify() {
     const token = ($('acCode').value || '').replace(/\D/g, ''); if (token.length !== 6) { say('The code has six digits'); return; }
