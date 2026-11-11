@@ -152,12 +152,17 @@
     if (!ok) { sheet.innerHTML = '<h3>Not connected</h3><p>ALMA could not reach its database from here. Check the connection and open it again.</p>'; return; }
     if (!user) {
       sheet.innerHTML = `<h3>Keep your feelings</h3>
-        <p>ALMA keeps what you share in your own private space, on every device you use. Enter your email and we will send you a link to open ALMA.</p>
+        <p>ALMA keeps what you share in your own private space, on every device you use.</p>
         <label for="acEmail">Email</label><input type="email" id="acEmail" autocomplete="email" inputmode="email" value="${pendingEmail || ''}">
-        <button class="go" id="acSend">Send the code</button>
-        ${pendingEmail ? `<label for="acCode">The code from the email</label><input inputmode="numeric" id="acCode" maxlength="6" autocomplete="one-time-code"><button class="go" id="acVerify">Open my ALMA</button>` : ''}
+        <label for="acPass">Password</label><input type="password" id="acPass" autocomplete="current-password" minlength="6" placeholder="At least 6 characters">
+        <button class="go" id="acPw">Open my ALMA</button>
+        <p style="margin:8px 0 0;font-size:12.5px">The first time, this creates your account with that password.</p>
+        <button class="quiet" id="acSend">Email me a link instead</button>
+        ${pendingEmail ? `<label for="acCode">The code from the email, if it shows one</label><input inputmode="numeric" id="acCode" maxlength="6" autocomplete="one-time-code"><button class="go" id="acVerify">Check the code</button>` : ''}
         <p class="msg" id="acMsg">${msg || ''}</p>${demoRow()}`;
       $('acSend').addEventListener('click', sendCode);
+      $('acPw').addEventListener('click', withPassword);
+      $('acPass').addEventListener('keydown', e => { if (e.key === 'Enter') withPassword(); });
       if ($('acVerify')) { $('acVerify').addEventListener('click', verify); $('acCode').addEventListener('input', e => { if (e.target.value.replace(/\D/g, '').length === 6) verify(); }); }
     } else {
       const waiting = queue.length;
@@ -178,6 +183,21 @@
   const demoRow = () => `<label class="row2"><input type="checkbox" id="acDemo" ${window.ALMA_DEMO ? 'checked' : ''}><span>Example data<small>Fills Reflect and the journal with made-up entries, for presentations. Your own entries are kept either way.</small></span></label>`;
   const say = t => { const m = $('acMsg'); if (m) m.textContent = t; };
 
+  // Email + password: works inside the home-screen app, with no email needed when "Confirm email" is off in Supabase.
+  async function withPassword() {
+    const email = ($('acEmail').value || '').trim().toLowerCase(), password = $('acPass').value || '';
+    if (!/^\S+@\S+\.\S+$/.test(email)) { say('That email does not look right'); return; }
+    if (password.length < 6) { say('The password needs at least 6 characters'); return; }
+    $('acPw').disabled = true; say('Opening…');
+    let r = await sb.auth.signInWithPassword({ email, password });
+    if (r.error && /invalid login credentials/i.test(r.error.message)) {
+      const up = await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } });
+      if (up.error) { $('acPw').disabled = false; say(/already registered/i.test(up.error.message) ? 'That password does not match this email.' : 'Could not create the account: ' + up.error.message); return; }
+      if (!up.data.session) { $('acPw').disabled = false; say('Account created. Confirm it from the email, then come back and press Open my ALMA again.'); return; }
+      return;
+    }
+    if (r.error) { $('acPw').disabled = false; say(/not confirmed/i.test(r.error.message) ? 'Confirm your account from the email first, then press Open my ALMA again.' : 'Could not sign in: ' + r.error.message); }
+  }
   async function sendCode() {
     const email = ($('acEmail').value || '').trim().toLowerCase(); if (!/^\S+@\S+\.\S+$/.test(email)) { say('That email does not look right'); return; }
     $('acSend').disabled = true; say('Sending…');
